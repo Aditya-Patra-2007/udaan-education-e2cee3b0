@@ -14,7 +14,91 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      matches: {
+        Row: {
+          created_at: string | null
+          exp_gained: number | null
+          id: string
+          match_type: string
+          player1_id: string
+          player2_id: string
+          winner_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          exp_gained?: number | null
+          id?: string
+          match_type: string
+          player1_id: string
+          player2_id: string
+          winner_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          exp_gained?: number | null
+          id?: string
+          match_type?: string
+          player1_id?: string
+          player2_id?: string
+          winner_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "matches_player1_id_fkey"
+            columns: ["player1_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "matches_player2_id_fkey"
+            columns: ["player2_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "matches_winner_id_fkey"
+            columns: ["winner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          avatar: string | null
+          created_at: string | null
+          email: string
+          exp: number | null
+          id: string
+          rank: number | null
+          updated_at: string | null
+          username: string
+        }
+        Insert: {
+          avatar?: string | null
+          created_at?: string | null
+          email: string
+          exp?: number | null
+          id: string
+          rank?: number | null
+          updated_at?: string | null
+          username: string
+        }
+        Update: {
+          avatar?: string | null
+          created_at?: string | null
+          email?: string
+          exp?: number | null
+          id?: string
+          rank?: number | null
+          updated_at?: string | null
+          username?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
