@@ -1,40 +1,23 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
-import { useMatchmaking } from '@/hooks/useMatchmaking';
-import { useMatches } from '@/hooks/useMatches';
 import { Navigation } from '@/components/Navigation';
 import { GameRouter, GameMode } from '@/components/games/GameRouter';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
-import { Swords, Brain, Users, Clock, Loader2, Trophy, Calendar } from 'lucide-react';
+import { Swords, Brain, Users, Clock, Loader2 } from 'lucide-react';
 
 const PvP = () => {
   const { user, loading: authLoading } = useAuth();
   const { profile, loading: profileLoading } = useProfile();
-  const { stats, getRecentMatches, recordMatch, updateUserExp, getOpponentInfo, didUserWin } = useMatches();
   const [selectedMode, setSelectedMode] = useState<GameMode | null>(null);
+  const [matchmaking, setMatchmaking] = useState(false);
   const [inGame, setInGame] = useState(false);
-  const { 
-    isQueued, 
-    isMatched, 
-    opponent, 
-    estimatedWaitTime, 
-    simulateMatch,
-    leaveQueue 
-  } = useMatchmaking();
-
-  // When a match is found, start the game
-  useEffect(() => {
-    if (isMatched && opponent && selectedMode) {
-      setInGame(true);
-    }
-  }, [isMatched, opponent, selectedMode]);
+  const [opponent] = useState('AI_Player'); // In real app, this would come from matchmaking
 
   if (authLoading || profileLoading) {
     return (
@@ -48,59 +31,39 @@ const PvP = () => {
     return <Navigate to="/auth" replace />;
   }
 
-  const calculateExpGained = (score: number, total: number, gameMode: GameMode): number => {
-    const baseExp = gameMode === 'comprehension' ? 10 : 15;
-    const maxBonus = gameMode === 'comprehension' ? 15 : 15;
-    const percentage = score / total;
-    
-    return Math.round(baseExp + (maxBonus * percentage));
-  };
-
-  const handleStartMatch = async (mode: GameMode) => {
+  const handleStartMatch = (mode: GameMode) => {
     setSelectedMode(mode);
+    setMatchmaking(true);
     
-    // Use simulated matchmaking for development
-    try {
-      await simulateMatch(mode);
-    } catch (error) {
-      console.error('Error starting match:', error);
-      toast({
-        title: "Error",
-        description: "Failed to start matchmaking. Please try again.",
-        variant: "destructive",
-      });
-    }
+    // Simulate matchmaking delay
+    setTimeout(() => {
+      setMatchmaking(false);
+      setInGame(true);
+    }, 3000);
   };
 
   const handleGameEnd = async (score: number, totalQuestions: number, gameMode: GameMode) => {
-    if (!opponent) return;
-
+    // Update user's EXP in the database
     try {
       const expGained = calculateExpGained(score, totalQuestions, gameMode);
-      const won = score >= Math.ceil(totalQuestions * 0.6); // Win if 60% or higher
+      const newExp = (profile?.exp || 0) + expGained;
+      
+      const { error } = await supabase
+        .from('profiles')
+        .update({ exp: newExp })
+        .eq('id', user?.id);
 
-      // Record the match in database
-      await recordMatch({
-        matchId: `game-${Date.now()}`,
-        score,
-        totalQuestions,
-        gameMode,
-        opponentId: opponent.id,
-        won,
-      });
-
-      // Update user's EXP
-      await updateUserExp(expGained);
+      if (error) throw error;
       
       toast({
-        title: won ? "Victory!" : "Good Game!",
+        title: "Game Complete!",
         description: `You gained ${expGained} EXP! Score: ${score}/${totalQuestions}`,
       });
     } catch (error) {
-      console.error('Error updating match data:', error);
+      console.error('Error updating EXP:', error);
       toast({
         title: "Error",
-        description: "Failed to save match results. Please try again.",
+        description: "Failed to update your EXP. Please try again.",
         variant: "destructive",
       });
     }
@@ -109,23 +72,30 @@ const PvP = () => {
   const handleReturnToLobby = () => {
     setInGame(false);
     setSelectedMode(null);
+    setMatchmaking(false);
   };
 
-  if (inGame && selectedMode && opponent) {
+  const calculateExpGained = (score: number, total: number, gameMode: GameMode): number => {
+    const baseExp = gameMode === 'comprehension' ? 10 : 15;
+    const maxBonus = gameMode === 'comprehension' ? 15 : 15;
+    const percentage = score / total;
+    
+    return Math.round(baseExp + (maxBonus * percentage));
+  };
+
+  if (inGame && selectedMode) {
     return (
       <div className="min-h-screen bg-background">
         <Navigation />
         <GameRouter 
           gameMode={selectedMode}
-          opponentUsername={opponent.username}
+          opponentUsername={opponent}
           onGameEnd={handleGameEnd}
           onReturnToLobby={handleReturnToLobby}
         />
       </div>
     );
   }
-
-  if (isQueued) {
     return (
       <div className="min-h-screen bg-background">
         <Navigation />
@@ -151,12 +121,12 @@ const PvP = () => {
                   <div className="flex justify-center">
                     <Badge variant="outline" className="px-4 py-2">
                       <Clock className="h-4 w-4 mr-2" />
-                      Est. wait: {estimatedWaitTime}s
+                      Est. wait: 30s
                     </Badge>
                   </div>
                   <Button 
                     variant="outline" 
-                    onClick={leaveQueue}
+                    onClick={() => setMatchmaking(false)}
                     className="w-full"
                   >
                     Cancel Matchmaking
@@ -184,7 +154,7 @@ const PvP = () => {
           </div>
 
           {/* Player Stats */}
-          <div className="grid md:grid-cols-4 gap-4 mb-8">
+          <div className="grid md:grid-cols-3 gap-4 mb-8">
             <Card className="text-center">
               <CardContent className="pt-6">
                 <div className="text-2xl font-bold text-primary">{profile?.exp || 0}</div>
@@ -199,14 +169,8 @@ const PvP = () => {
             </Card>
             <Card className="text-center">
               <CardContent className="pt-6">
-                <div className="text-2xl font-bold text-primary">{stats.matchesWon}</div>
+                <div className="text-2xl font-bold text-primary">0</div>
                 <div className="text-sm text-muted-foreground">Matches Won</div>
-              </CardContent>
-            </Card>
-            <Card className="text-center">
-              <CardContent className="pt-6">
-                <div className="text-2xl font-bold text-primary">{stats.winRate}%</div>
-                <div className="text-sm text-muted-foreground">Win Rate</div>
               </CardContent>
             </Card>
           </div>
@@ -276,54 +240,15 @@ const PvP = () => {
           {/* Recent Matches */}
           <Card className="mt-8">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Trophy className="h-5 w-5" />
-                Recent Matches
-              </CardTitle>
-              <CardDescription>Your recent battle history</CardDescription>
+              <CardTitle>Recent Matches</CardTitle>
+              <CardDescription>Your battle history</CardDescription>
             </CardHeader>
             <CardContent>
-              {getRecentMatches().length === 0 ? (
-                <div className="text-center py-12 text-muted-foreground">
-                  <Swords className="h-16 w-16 mx-auto mb-4 opacity-50" />
-                  <h3 className="text-lg font-medium mb-2">No matches yet</h3>
-                  <p>Start your first battle to see your match history here!</p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {getRecentMatches().map((match) => {
-                    const opponent = getOpponentInfo(match);
-                    const won = didUserWin(match);
-                    
-                    return (
-                      <div key={match.id} className="flex items-center justify-between p-4 border rounded-lg">
-                        <div className="flex items-center gap-4">
-                          <div className={`h-2 w-2 rounded-full ${won ? 'bg-green-500' : 'bg-red-500'}`} />
-                          <Avatar className="h-8 w-8">
-                            <AvatarImage src={opponent?.avatar} />
-                            <AvatarFallback>
-                              {opponent?.username?.charAt(0).toUpperCase()}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <div className="font-medium">vs {opponent?.username}</div>
-                            <div className="text-sm text-muted-foreground capitalize">
-                              {match.match_type} • {won ? 'Victory' : 'Defeat'}
-                            </div>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <div className="text-sm font-medium">+{match.exp_gained} EXP</div>
-                          <div className="text-xs text-muted-foreground">
-                            <Calendar className="h-3 w-3 inline mr-1" />
-                            {new Date(match.created_at).toLocaleDateString()}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
+              <div className="text-center py-12 text-muted-foreground">
+                <Swords className="h-16 w-16 mx-auto mb-4 opacity-50" />
+                <h3 className="text-lg font-medium mb-2">No matches yet</h3>
+                <p>Start your first battle to see your match history here!</p>
+              </div>
             </CardContent>
           </Card>
         </div>

@@ -4,15 +4,19 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/useAuth';
 import { Navigation } from '@/components/Navigation';
-import { MessageSquare, Send, Bot, User, Loader2 } from 'lucide-react';
+import { aiService } from '@/lib/aiService';
+import { MessageSquare, Send, Bot, User, Loader2, Lightbulb } from 'lucide-react';
 
 interface Message {
   id: string;
   content: string;
   sender: 'user' | 'ai';
   timestamp: Date;
+  suggestions?: string[];
+  relatedTopics?: string[];
 }
 
 const Chat = () => {
@@ -54,21 +58,44 @@ const Chat = () => {
     setInput('');
     setIsLoading(true);
 
-    // Simulate AI response (in real app, this would call your AI service)
-    setTimeout(() => {
-      const aiResponse: Message = {
+    try {
+      // Get AI response using the AI service
+      const aiResponse = await aiService.generateResponse(
+        userMessage.content,
+        messages.slice(-3).map(m => m.content) // Pass recent context
+      );
+
+      const aiMessage: Message = {
         id: (Date.now() + 1).toString(),
-        content: "I understand your question! In a real implementation, I would connect to an AI service like GPT to provide you with helpful study assistance. For now, I'm a placeholder response showing how the chat interface works.",
+        content: aiResponse.message,
+        sender: 'ai',
+        timestamp: new Date(),
+        suggestions: aiResponse.suggestions,
+        relatedTopics: aiResponse.relatedTopics,
+      };
+
+      setMessages(prev => [...prev, aiMessage]);
+    } catch (error) {
+      console.error('Error getting AI response:', error);
+      
+      const errorMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        content: "I'm sorry, I'm having trouble responding right now. Please try again in a moment.",
         sender: 'ai',
         timestamp: new Date(),
       };
-      
-      setMessages(prev => [...prev, aiResponse]);
+
+      setMessages(prev => [...prev, errorMessage]);
+    } finally {
       setIsLoading(false);
-    }, 1500);
+    }
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
+  const handleSuggestionClick = (suggestion: string) => {
+    setInput(suggestion);
+  };
+
+  const handleKeyPress = (e: any) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
@@ -127,6 +154,43 @@ const Chat = () => {
                         <p className={`text-xs mt-2 opacity-70`}>
                           {message.timestamp.toLocaleTimeString()}
                         </p>
+                        
+                        {/* Show suggestions for AI messages */}
+                        {message.sender === 'ai' && message.suggestions && message.suggestions.length > 0 && (
+                          <div className="mt-3 space-y-2">
+                            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                              <Lightbulb className="h-3 w-3" />
+                              Suggestions:
+                            </div>
+                            <div className="flex flex-wrap gap-1">
+                              {message.suggestions.map((suggestion, index) => (
+                                <Button
+                                  key={index}
+                                  variant="outline"
+                                  size="sm"
+                                  className="text-xs h-6 px-2"
+                                  onClick={() => handleSuggestionClick(suggestion)}
+                                >
+                                  {suggestion}
+                                </Button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        
+                        {/* Show related topics for AI messages */}
+                        {message.sender === 'ai' && message.relatedTopics && message.relatedTopics.length > 0 && (
+                          <div className="mt-3 space-y-2">
+                            <div className="text-xs text-muted-foreground">Related topics:</div>
+                            <div className="flex flex-wrap gap-1">
+                              {message.relatedTopics.map((topic, index) => (
+                                <Badge key={index} variant="secondary" className="text-xs">
+                                  {topic}
+                                </Badge>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
                       
                       {message.sender === 'user' && (

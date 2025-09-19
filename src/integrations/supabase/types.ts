@@ -14,6 +14,85 @@ export type Database = {
   }
   public: {
     Tables: {
+      comprehension_questions: {
+        Row: {
+          correct_answer: number
+          created_at: string | null
+          explanation: string | null
+          id: string
+          option_a: string
+          option_b: string
+          option_c: string
+          option_d: string
+          passage_id: string
+          question_text: string
+        }
+        Insert: {
+          correct_answer: number
+          created_at?: string | null
+          explanation?: string | null
+          id?: string
+          option_a: string
+          option_b: string
+          option_c: string
+          option_d: string
+          passage_id: string
+          question_text: string
+        }
+        Update: {
+          correct_answer?: number
+          created_at?: string | null
+          explanation?: string | null
+          id?: string
+          option_a?: string
+          option_b?: string
+          option_c?: string
+          option_d?: string
+          passage_id?: string
+          question_text?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "comprehension_questions_passage_id_fkey"
+            columns: ["passage_id"]
+            isOneToOne: false
+            referencedRelation: "reading_passages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      matchmaking_queue: {
+        Row: {
+          created_at: string | null
+          game_mode: string
+          id: string
+          player_id: string
+          skill_level: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          game_mode: string
+          id?: string
+          player_id: string
+          skill_level?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          game_mode?: string
+          id?: string
+          player_id?: string
+          skill_level?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "matchmaking_queue_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       matches: {
         Row: {
           created_at: string | null
@@ -96,6 +175,69 @@ export type Database = {
           rank?: number | null
           updated_at?: string | null
           username?: string
+        }
+        Relationships: []
+      }
+      reading_passages: {
+        Row: {
+          content: string
+          created_at: string | null
+          difficulty_level: string
+          grade_level: number
+          id: string
+          is_active: boolean | null
+          subject: string
+          title: string
+        }
+        Insert: {
+          content: string
+          created_at?: string | null
+          difficulty_level: string
+          grade_level: number
+          id?: string
+          is_active?: boolean | null
+          subject: string
+          title: string
+        }
+        Update: {
+          content?: string
+          created_at?: string | null
+          difficulty_level?: string
+          grade_level?: number
+          id?: string
+          is_active?: boolean | null
+          subject?: string
+          title?: string
+        }
+        Relationships: []
+      }
+      spelling_words: {
+        Row: {
+          created_at: string | null
+          definition: string
+          difficulty_level: string
+          id: string
+          is_active: boolean | null
+          subject_category: string
+          word: string
+        }
+        Insert: {
+          created_at?: string | null
+          definition: string
+          difficulty_level: string
+          id?: string
+          is_active?: boolean | null
+          subject_category: string
+          word: string
+        }
+        Update: {
+          created_at?: string | null
+          definition?: string
+          difficulty_level?: string
+          id?: string
+          is_active?: boolean | null
+          subject_category?: string
+          word?: string
         }
         Relationships: []
       }
